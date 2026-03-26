@@ -1,106 +1,131 @@
 <p align="center">
-  <img src="https://img.shields.io/badge/Next.js-15-000000?style=flat-square&logo=next.js" />
-  <img src="https://img.shields.io/badge/SQLite-Drizzle-003b57?style=flat-square&logo=sqlite" />
-  <img src="https://img.shields.io/badge/Docker-Ready-2496ed?style=flat-square&logo=docker" />
-  <img src="https://img.shields.io/badge/Platform-Self_Hosted-22c55e?style=flat-square" />
+  <img src="https://img.shields.io/badge/Next.js-15-000000?style=for-the-badge&logo=next.js&logoColor=white" />
+  <img src="https://img.shields.io/badge/TypeScript-5-3178c6?style=for-the-badge&logo=typescript&logoColor=white" />
+  <img src="https://img.shields.io/badge/SQLite-Drizzle-003b57?style=for-the-badge&logo=sqlite&logoColor=white" />
+  <img src="https://img.shields.io/badge/Docker-Ready-2496ed?style=for-the-badge&logo=docker&logoColor=white" />
 </p>
 
-# HomeServ
+<h1 align="center">🏠 HomeServ</h1>
 
-> Self-hosted home server dashboard for device management, system monitoring, media, and automation
+<p align="center">
+  <strong>Self-hosted home server dashboard &mdash; monitor, manage, automate</strong>
+</p>
 
----
-
-### Highlights
-
-| Feature | Description |
-|:--------|:------------|
-| **System Monitor** | Real-time CPU, memory, disk, and network charts via SSE |
-| **Device Manager** | Track and control devices across rooms with status indicators |
-| **Wake-on-LAN** | Wake devices remotely from the dashboard |
-| **File Browser** | Browse and manage files on your server |
-| **Media Server** | Stream media from your home server |
-| **Home Assistant** | Integration with Home Assistant for smart home control |
-| **MQTT** | MQTT client for IoT device communication |
-| **Automations** | Rule-based automation engine |
-| **Remote Desktop** | VNC proxy for remote desktop access |
-| **Auth** | PIN/password authentication with session management |
+<p align="center">
+  <em>Docker &bull; Portable USB &bull; Direct Install</em>
+</p>
 
 ---
 
-### Tech Stack
+## ✨ Features
 
-```
-Framework       Next.js 15 (App Router, TypeScript)
-Database        SQLite via better-sqlite3 + Drizzle ORM
-Realtime        Server-Sent Events (SSE) for live metrics
-Integrations    Home Assistant  |  MQTT  |  Wake-on-LAN  |  VNC
-Deployment      Docker  |  Portable USB  |  Direct install
-Styling         Tailwind CSS
-```
+<table>
+<tr>
+<td width="50%">
 
-### Quick Start
+### 📊 Monitor
+- **System Metrics** &mdash; Real-time CPU, RAM, disk, network
+- **Live Charts** &mdash; SSE-powered streaming graphs
+- **Device Status** &mdash; Track all network devices
+
+</td>
+<td width="50%">
+
+### 🔧 Manage
+- **File Browser** &mdash; Browse and manage server files
+- **Wake-on-LAN** &mdash; Wake devices remotely
+- **Remote Desktop** &mdash; VNC proxy built in
+
+</td>
+</tr>
+<tr>
+<td>
+
+### 🏡 Automate
+- **Home Assistant** &mdash; Smart home integration
+- **MQTT** &mdash; IoT device communication
+- **Rule Engine** &mdash; Custom automation triggers
+
+</td>
+<td>
+
+### 🎬 Media
+- **Media Server** &mdash; Stream from your library
+- **Auth System** &mdash; PIN/password with sessions
+- **Multi-deploy** &mdash; Docker, USB, or direct
+
+</td>
+</tr>
+</table>
+
+---
+
+## 🖥️ Dashboard Pages
+
+| Icon | Page | Route | Description |
+|:-----|:-----|:------|:------------|
+| 📊 | Dashboard | `/` | System overview widgets |
+| 📟 | Devices | `/devices` | Manage by room |
+| 💻 | System | `/system` | CPU, memory, disk, network |
+| 📁 | Files | `/files` | File browser |
+| 🎬 | Media | `/media` | Media library |
+| ⏰ | Wake | `/wake` | Wake-on-LAN |
+| 🖥️ | Desktop | `/desktop` | Remote VNC |
+| ⚙️ | Settings | `/settings` | Configuration |
+| 🔧 | Setup | `/setup` | First-run wizard |
+
+---
+
+## 🚀 Quick Start
 
 ```bash
 cd app
 npm install
-npm run dev                    # Dev server on :3001
+npm run dev        # Dev server on :3001
 ```
 
-### Docker Deployment
+## 🐳 Docker
 
 ```bash
-docker-compose up -d           # Production deployment
+docker-compose up -d
 ```
 
-### Portable USB Install
+## 💾 Portable USB
 
 ```bash
-./build-usb.sh                 # Build USB-bootable version
-# or on Windows:
-build-usb.bat
+./build-usb.sh     # Linux/Mac
+build-usb.bat       # Windows
 ```
 
-### Dashboard Pages
-
-| Page | Route | Description |
-|:-----|:------|:------------|
-| Dashboard | `/` | System overview with widgets |
-| Devices | `/devices` | Device management by room |
-| System | `/system` | CPU, memory, disk, network charts |
-| Files | `/files` | File browser |
-| Media | `/media` | Media library and streaming |
-| Wake | `/wake` | Wake-on-LAN interface |
-| Desktop | `/desktop` | Remote desktop via VNC |
-| Settings | `/settings` | Server configuration |
-| Setup | `/setup` | First-run configuration wizard |
-
-### Architecture
+## 📁 Structure
 
 ```
 homeserv/
-  app/
-    src/
-      app/
-        api/                   # REST API routes (auth, devices, system, files, etc.)
-        (pages)/               # Next.js pages (dashboard, devices, system, media)
-      components/
-        dashboard/             # Dashboard widgets
-        devices/               # Device cards and room views
-        system/                # CPU, memory, disk, network charts
-        layout/                # AppShell, Sidebar
-      lib/
-        auth.ts                # Authentication
-        db.ts                  # Database connection
-        device-manager.ts      # Device tracking
-        system-monitor.ts      # System metrics collection
-        ha-client.ts           # Home Assistant integration
-        mqtt-client.ts         # MQTT client
-        wol.ts                 # Wake-on-LAN
-  docker-compose.yml           # Production deployment
-  portable/                    # USB portable install scripts
+├── app/
+│   ├── src/
+│   │   ├── app/
+│   │   │   ├── api/              REST endpoints
+│   │   │   ├── (pages)/          Dashboard, devices, system...
+│   │   │   └── layout.tsx        App layout
+│   │   ├── components/
+│   │   │   ├── dashboard/        Stat widgets
+│   │   │   ├── devices/          Device cards
+│   │   │   ├── system/           Metric charts
+│   │   │   └── layout/           AppShell, Sidebar
+│   │   └── lib/
+│   │       ├── db.ts             SQLite + Drizzle
+│   │       ├── system-monitor.ts Metrics collection
+│   │       ├── ha-client.ts      Home Assistant
+│   │       ├── mqtt-client.ts    MQTT
+│   │       └── wol.ts            Wake-on-LAN
+│   └── Dockerfile
+├── docker-compose.yml
+├── portable/                     USB install scripts
+└── homeserv-usb/                 Pre-built USB image
 ```
 
 ---
 
-*Built by Scott Morley*
+<p align="center">
+  <sub>Built by Scott Morley</sub>
+</p>
