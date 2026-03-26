@@ -1,0 +1,33 @@
+services:
+  homeserv:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    container_name: homeserv
+    restart: unless-stopped
+    ports:
+      - "${HOMESERV_PORT:-3001}:3001"   # Web UI
+      - "${VNC_WS_PORT:-3002}:3002"     # VNC WebSocket proxy
+    volumes:
+      - homeserv-data:/app/data          # Persistent database + thumbnails
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - JWT_SECRET=${JWT_SECRET:-change-this-to-a-random-secret-in-production}
+      - VNC_HOST=${VNC_HOST:-host.docker.internal}  # Access host VNC server from container
+      - VNC_PORT=${VNC_PORT:-5900}
+      - VNC_WS_PORT=3002
+    extra_hosts:
+      - "host.docker.internal:host-gateway"  # Allow container to reach host services
+    # Grant NET_RAW for Wake-on-LAN magic packets and ping
+    cap_add:
+      - NET_RAW
+    # For system monitoring of the HOST (not just the container), mount these read-only:
+    # Uncomment the lines below if you want host-level system metrics
+    # volumes:
+    #   - /proc:/host/proc:ro
+    #   - /sys:/host/sys:ro
+
+volumes:
+  homeserv-data:
+    driver: local

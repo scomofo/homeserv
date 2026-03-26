@@ -1,0 +1,42 @@
+{
+  "name": "homeserv",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --port 3001",
+    "build": "next build",
+    "start": "next start --port 3001",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.8.0",
+    "bcrypt": "^5.1.1",
+    "clsx": "^2.1.1",
+    "drizzle-orm": "^0.45.1",
+    "jose": "^5.9.6",
+    "lucide-react": "^0.577.0",
+    "mqtt": "^5.10.0",
+    "next": "16.2.0",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "recharts": "^2.15.0",
+    "systeminformation": "^5.25.0",
+    "tailwind-merge": "^3.5.0",
+    "ws": "^8.18.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/bcrypt": "^5.0.2",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@types/ws": "^8.5.0",
+    "drizzle-kit": "^0.31.10",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.0",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}

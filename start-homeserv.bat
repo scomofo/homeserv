@@ -1,0 +1,9 @@
+@echo off
+echo Starting HomeServ...
+cd /d "%~dp0app"
+
+echo Starting VNC Proxy on port 3002...
+start "HomeServ VNC Proxy" cmd /c "npx tsx vnc-server.ts"
+
+echo Starting Next.js dev server on port 3001...
+npm run dev
