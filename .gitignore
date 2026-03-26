@@ -3,3 +3,5 @@ dist/
 *.db
 .env
 .claude/
+homeserv-usb/homeserv-image.tar
+*.tar
