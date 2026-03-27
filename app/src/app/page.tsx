@@ -6,6 +6,7 @@ import { UptimeWidget } from "@/components/dashboard/UptimeWidget";
 import { NetworkWidget } from "@/components/dashboard/NetworkWidget";
 import { QuickActionsWidget } from "@/components/dashboard/QuickActionsWidget";
 import { DeviceStatusWidget } from "@/components/dashboard/DeviceStatusWidget";
+import { NetworkDevicesWidget } from "@/components/dashboard/NetworkDevicesWidget";
 import { Server } from "lucide-react";
 
 export default function DashboardPage() {
@@ -34,6 +35,7 @@ export default function DashboardPage() {
         <UptimeWidget metrics={metrics} />
         <NetworkWidget metrics={metrics} />
         <DeviceStatusWidget />
+        <NetworkDevicesWidget />
         <QuickActionsWidget />
       </div>
     </div>

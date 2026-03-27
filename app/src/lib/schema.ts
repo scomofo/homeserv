@@ -71,6 +71,17 @@ export const mediaFavorites = sqliteTable("media_favorites", {
     .default(sql`(datetime('now'))`),
 });
 
+export const networkDevices = sqliteTable("network_devices", {
+  mac: text("mac").primaryKey(),
+  ip: text("ip").notNull(),
+  name: text("name").notNull().default("---"),
+  vendor: text("vendor").notNull().default("Unknown"),
+  portsJson: text("ports_json").notNull().default("[]"),
+  lastSeen: text("last_seen").notNull(),
+  firstSeen: text("first_seen").notNull(),
+  status: text("status").notNull().default("offline"),
+});
+
 export const settings = sqliteTable("settings", {
   key: text("key").primaryKey(),
   value: text("value").notNull(),

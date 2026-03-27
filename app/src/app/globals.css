@@ -196,3 +196,109 @@ body {
   transform: rotate(-90deg);
   transform-origin: 50% 50%;
 }
+
+/* ===== Network Scanner Page ===== */
+
+/* Radar sweep animation */
+@keyframes radar-sweep {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes radar-ping {
+  0% { transform: scale(0.8); opacity: 0.8; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+
+@keyframes beacon-pulse {
+  0%, 100% { box-shadow: 0 0 4px currentColor, 0 0 8px currentColor; }
+  50% { box-shadow: 0 0 8px currentColor, 0 0 20px currentColor, 0 0 32px currentColor; }
+}
+
+@keyframes scan-line {
+  from { transform: translateX(-100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes glow-breathe {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
+
+@keyframes count-up {
+  from { transform: translateY(10px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.animate-radar-sweep {
+  animation: radar-sweep 3s linear infinite;
+}
+
+.animate-radar-ping {
+  animation: radar-ping 2s ease-out infinite;
+}
+
+.animate-beacon-pulse {
+  animation: beacon-pulse 2s ease-in-out infinite;
+}
+
+.animate-scan-line {
+  animation: scan-line 0.4s ease-out both;
+}
+
+.animate-count-up {
+  animation: count-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Staggered scan-line entrances for device rows */
+.scan-stagger > *:nth-child(1) { animation-delay: 0ms; }
+.scan-stagger > *:nth-child(2) { animation-delay: 60ms; }
+.scan-stagger > *:nth-child(3) { animation-delay: 120ms; }
+.scan-stagger > *:nth-child(4) { animation-delay: 180ms; }
+.scan-stagger > *:nth-child(5) { animation-delay: 240ms; }
+.scan-stagger > *:nth-child(6) { animation-delay: 300ms; }
+.scan-stagger > *:nth-child(7) { animation-delay: 360ms; }
+.scan-stagger > *:nth-child(8) { animation-delay: 420ms; }
+.scan-stagger > *:nth-child(9) { animation-delay: 480ms; }
+.scan-stagger > *:nth-child(10) { animation-delay: 540ms; }
+.scan-stagger > *:nth-child(n+11) { animation-delay: 600ms; }
+
+/* Grid background pattern for network page */
+.net-grid-bg {
+  background-image:
+    linear-gradient(rgba(139, 92, 246, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(139, 92, 246, 0.03) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.dark .net-grid-bg {
+  background-image:
+    linear-gradient(rgba(139, 92, 246, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(139, 92, 246, 0.06) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* Port badge glow on hover */
+.port-badge {
+  transition: all 0.2s ease;
+}
+.port-badge:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.2);
+}
+
+/* Network device row hover lift */
+.net-device-row {
+  transition: transform 0.2s ease, box-shadow 0.3s ease;
+}
+.net-device-row:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 8px 24px rgba(139, 92, 246, 0.08),
+    0 2px 8px rgba(0, 0, 0, 0.06);
+}
+.dark .net-device-row:hover {
+  box-shadow:
+    0 8px 24px rgba(139, 92, 246, 0.15),
+    0 2px 8px rgba(0, 0, 0, 0.3);
+}

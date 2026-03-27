@@ -87,6 +87,17 @@ function initDb(): BetterSQLite3Database<typeof schema> {
       value TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS network_devices (
+      mac TEXT PRIMARY KEY,
+      ip TEXT NOT NULL,
+      name TEXT NOT NULL DEFAULT '---',
+      vendor TEXT NOT NULL DEFAULT 'Unknown',
+      ports_json TEXT NOT NULL DEFAULT '[]',
+      last_seen TEXT NOT NULL,
+      first_seen TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'offline'
+    );
+
     CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token);
     CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at);
     CREATE INDEX IF NOT EXISTS idx_system_metrics_timestamp ON system_metrics(timestamp);

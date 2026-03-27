@@ -8,6 +8,7 @@ import { useAppShell } from "./AppShell";
 import {
   LayoutDashboard,
   Activity,
+  Radar,
   Lightbulb,
   FolderOpen,
   Film,
@@ -22,6 +23,7 @@ import {
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/system", label: "System", icon: Activity },
+  { href: "/network", label: "Network", icon: Radar },
   { href: "/devices", label: "Devices", icon: Lightbulb },
   { href: "/files", label: "Files", icon: FolderOpen },
   { href: "/media", label: "Media", icon: Film },
