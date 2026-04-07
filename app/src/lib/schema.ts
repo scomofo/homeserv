@@ -41,10 +41,18 @@ export const wolDevices = sqliteTable("wol_devices", {
 export const automations = sqliteTable("automations", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
-  triggerJson: text("trigger_json").notNull(),
-  actionJson: text("action_json").notNull(),
   enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+  triggerType: text("trigger_type").notNull(),
+  triggerConfigJson: text("trigger_config_json").notNull(),
+  actionType: text("action_type").notNull(),
+  actionConfigJson: text("action_config_json").notNull(),
+  lastRunAt: text("last_run_at"),
+  lastResult: text("last_result"),
+  lastError: text("last_error"),
   createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+  updatedAt: text("updated_at")
     .notNull()
     .default(sql`(datetime('now'))`),
 });

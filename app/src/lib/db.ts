@@ -58,10 +58,16 @@ function initDb(): BetterSQLite3Database<typeof schema> {
     CREATE TABLE IF NOT EXISTS automations (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
-      trigger_json TEXT NOT NULL,
-      action_json TEXT NOT NULL,
       enabled INTEGER NOT NULL DEFAULT 1,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      trigger_type TEXT NOT NULL,
+      trigger_config_json TEXT NOT NULL,
+      action_type TEXT NOT NULL,
+      action_config_json TEXT NOT NULL,
+      last_run_at TEXT,
+      last_result TEXT,
+      last_error TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
     CREATE TABLE IF NOT EXISTS system_metrics (
@@ -103,6 +109,33 @@ function initDb(): BetterSQLite3Database<typeof schema> {
     CREATE INDEX IF NOT EXISTS idx_system_metrics_timestamp ON system_metrics(timestamp);
     CREATE INDEX IF NOT EXISTS idx_devices_source ON devices(source);
   `);
+
+  // Migrate old automations table if it has the old schema
+  try {
+    const cols = sqlite.prepare("PRAGMA table_info(automations)").all() as { name: string }[];
+    const colNames = cols.map((c) => c.name);
+    if (colNames.includes("trigger_json") && !colNames.includes("trigger_type")) {
+      sqlite.prepare("DROP TABLE automations").run();
+      sqlite.prepare(`
+        CREATE TABLE automations (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          enabled INTEGER NOT NULL DEFAULT 1,
+          trigger_type TEXT NOT NULL,
+          trigger_config_json TEXT NOT NULL,
+          action_type TEXT NOT NULL,
+          action_config_json TEXT NOT NULL,
+          last_run_at TEXT,
+          last_result TEXT,
+          last_error TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+      `).run();
+    }
+  } catch {
+    // Table doesn't exist yet, will be created above
+  }
 
   _db = drizzle(sqlite, { schema });
   return _db;
