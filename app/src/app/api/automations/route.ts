@@ -1,17 +1,19 @@
+// app/src/app/api/automations/route.ts
 import { NextRequest } from "next/server";
 import {
-  getAutomations,
+  listAutomations,
+  getAutomationById,
   createAutomation,
   updateAutomation,
   deleteAutomation,
-  executeActions,
-  startAutomationRunner,
-} from "@/lib/automation-engine";
+} from "@/lib/automation-repo";
+import { automationInputSchema } from "@/lib/automation-validation";
+import { startAutomationEngine, refreshAutomationEngine } from "@/lib/automation-engine";
 
 export async function GET() {
   try {
-    startAutomationRunner();
-    const all = getAutomations();
+    startAutomationEngine();
+    const all = listAutomations();
     return Response.json(all);
   } catch (e) {
     return Response.json(
@@ -23,31 +25,18 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    startAutomationEngine();
     const body = await request.json();
-    const { action } = body;
 
-    if (action === "test") {
-      // Test-run an automation's actions
-      const { actions } = body;
-      if (!actions || !Array.isArray(actions)) {
-        return Response.json({ error: "actions array required" }, { status: 400 });
-      }
-      await executeActions(actions);
-      return Response.json({ success: true });
+    const result = automationInputSchema.safeParse(body);
+    if (!result.success) {
+      const messages = result.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`);
+      return Response.json({ error: messages.join("; ") }, { status: 400 });
     }
 
-    // Create new automation
-    const { name, trigger, actions: automationActions, enabled = true } = body;
-
-    if (!name || !trigger || !automationActions) {
-      return Response.json(
-        { error: "name, trigger, and actions required" },
-        { status: 400 }
-      );
-    }
-
-    const id = createAutomation({ name, trigger, actions: automationActions, enabled });
-    return Response.json({ id });
+    const id = createAutomation(result.data);
+    refreshAutomationEngine();
+    return Response.json({ success: true, id });
   } catch (e) {
     return Response.json(
       { error: e instanceof Error ? e.message : "Failed to create automation" },
@@ -58,13 +47,43 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const { id, ...updates } = await request.json();
+    const body = await request.json();
+    const { id, ...updates } = body;
 
     if (!id) {
       return Response.json({ error: "id required" }, { status: 400 });
     }
 
+    const existing = getAutomationById(id);
+    if (!existing) {
+      return Response.json({ error: "Automation not found" }, { status: 404 });
+    }
+
+    // If only toggling enabled, skip full validation
+    if (Object.keys(updates).length === 1 && updates.enabled !== undefined) {
+      updateAutomation(id, { enabled: updates.enabled });
+      refreshAutomationEngine();
+      return Response.json({ success: true });
+    }
+
+    // Full update — validate the merged input
+    const merged = {
+      name: updates.name ?? existing.name,
+      enabled: updates.enabled ?? existing.enabled,
+      triggerType: updates.triggerType ?? existing.triggerType,
+      triggerConfig: updates.triggerConfig ?? existing.triggerConfig,
+      actionType: updates.actionType ?? existing.actionType,
+      actionConfig: updates.actionConfig ?? existing.actionConfig,
+    };
+
+    const result = automationInputSchema.safeParse(merged);
+    if (!result.success) {
+      const messages = result.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`);
+      return Response.json({ error: messages.join("; ") }, { status: 400 });
+    }
+
     updateAutomation(id, updates);
+    refreshAutomationEngine();
     return Response.json({ success: true });
   } catch (e) {
     return Response.json(
@@ -83,6 +102,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     deleteAutomation(id);
+    refreshAutomationEngine();
     return Response.json({ success: true });
   } catch (e) {
     return Response.json(
