@@ -18,6 +18,7 @@ import {
   Server,
   Sun,
   Moon,
+  Zap,
 } from "lucide-react";
 
 const navItems = [
@@ -25,6 +26,7 @@ const navItems = [
   { href: "/system", label: "System", icon: Activity },
   { href: "/network", label: "Network", icon: Radar },
   { href: "/devices", label: "Devices", icon: Lightbulb },
+  { href: "/automations", label: "Auto", icon: Zap },
   { href: "/files", label: "Files", icon: FolderOpen },
   { href: "/media", label: "Media", icon: Film },
   { href: "/desktop", label: "Desktop", icon: Monitor },
