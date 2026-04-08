@@ -7,6 +7,7 @@ import { NetworkWidget } from "@/components/dashboard/NetworkWidget";
 import { QuickActionsWidget } from "@/components/dashboard/QuickActionsWidget";
 import { DeviceStatusWidget } from "@/components/dashboard/DeviceStatusWidget";
 import { NetworkDevicesWidget } from "@/components/dashboard/NetworkDevicesWidget";
+import { SetupChecklistWidget } from "@/components/dashboard/SetupChecklistWidget";
 import { Server } from "lucide-react";
 
 export default function DashboardPage() {
@@ -29,8 +30,11 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Setup checklist */}
+      <SetupChecklistWidget />
+
       {/* Widget grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 stagger-children">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 stagger-children mt-6">
         <SystemOverviewWidget metrics={metrics} />
         <UptimeWidget metrics={metrics} />
         <NetworkWidget metrics={metrics} />
