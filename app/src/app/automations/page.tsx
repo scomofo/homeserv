@@ -39,6 +39,42 @@ const ACTION_TYPES: { value: ActionType; label: string }[] = [
   { value: "wol_wake", label: "Wake-on-LAN" },
 ];
 
+const TEMPLATES: { label: string; form: FormState }[] = [
+  {
+    label: "Turn off lights at midnight",
+    form: {
+      name: "Turn off lights at midnight",
+      enabled: true,
+      triggerType: "schedule",
+      triggerConfig: { mode: "daily", time: "00:00" },
+      actionType: "ha_service",
+      actionConfig: { domain: "light", service: "turn_off", data: {} },
+    },
+  },
+  {
+    label: "Wake PC on MQTT signal",
+    form: {
+      name: "Wake PC on MQTT signal",
+      enabled: true,
+      triggerType: "mqtt_message",
+      triggerConfig: { topic: "home/wakepc", matchType: "equals", value: "ON" },
+      actionType: "wol_wake",
+      actionConfig: { deviceId: "" },
+    },
+  },
+  {
+    label: "MQTT relay — forward message",
+    form: {
+      name: "MQTT relay",
+      enabled: true,
+      triggerType: "mqtt_message",
+      triggerConfig: { topic: "home/input", matchType: "exists" },
+      actionType: "mqtt_publish",
+      actionConfig: { topic: "home/output", message: "received" },
+    },
+  },
+];
+
 const inputClass =
   "px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 w-full";
 
@@ -241,6 +277,18 @@ export default function AutomationsPage() {
     fetchAutomations();
   }
 
+  function applyTemplate(t: typeof TEMPLATES[number]) {
+    setEditingId(null);
+    setForm({ ...t.form });
+    setHaDataText(
+      t.form.actionType === "ha_service" && t.form.actionConfig.data
+        ? JSON.stringify(t.form.actionConfig.data, null, 2)
+        : ""
+    );
+    setError(null);
+    setShowForm(true);
+  }
+
   function updateTriggerConfig(key: string, value: unknown) {
     setForm((f) => ({ ...f, triggerConfig: { ...f.triggerConfig, [key]: value } }));
   }
@@ -405,9 +453,20 @@ export default function AutomationsPage() {
       ) : automations.length === 0 && !loadError ? (
         <div className="warm-card p-8 text-center">
           <Zap className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
-          <p className="text-slate-500 dark:text-slate-400">
-            No automations yet. Click &quot;New Automation&quot; to create one.
+          <p className="text-slate-500 dark:text-slate-400 mb-4">
+            No automations yet. Start from a template or create your own.
           </p>
+          <div className="flex flex-wrap justify-center gap-2">
+            {TEMPLATES.map((t, i) => (
+              <button
+                key={i}
+                onClick={() => applyTemplate(t)}
+                className="px-3 py-1.5 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 text-xs font-medium hover:bg-blue-500/20 transition"
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
         </div>
       ) : (
         <div className="space-y-3">
