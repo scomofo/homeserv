@@ -95,15 +95,20 @@ export default function AutomationsPage() {
   const [form, setForm] = useState<FormState>(defaultForm());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [haDataText, setHaDataText] = useState("");
 
   const fetchAutomations = useCallback(async () => {
     try {
       const res = await fetch("/api/automations");
       if (res.ok) {
         setAutomations(await res.json());
+        setLoadError(null);
+      } else {
+        setLoadError(`Failed to load automations (${res.status})`);
       }
     } catch {
-      // ignore
+      setLoadError("Could not connect to server");
     } finally {
       setLoading(false);
     }
@@ -118,20 +123,28 @@ export default function AutomationsPage() {
   function openCreate() {
     setEditingId(null);
     setForm(defaultForm());
+    setHaDataText("");
     setError(null);
     setShowForm(true);
   }
 
   function openEdit(auto: Automation) {
     setEditingId(auto.id);
+    const ac = auto.actionConfig as unknown as Record<string, unknown>;
     setForm({
       name: auto.name,
       enabled: auto.enabled,
       triggerType: auto.triggerType,
       triggerConfig: auto.triggerConfig as unknown as Record<string, unknown>,
       actionType: auto.actionType,
-      actionConfig: auto.actionConfig as unknown as Record<string, unknown>,
+      actionConfig: ac,
     });
+    // Initialize raw JSON text for HA service data field
+    if (auto.actionType === "ha_service" && ac.data && typeof ac.data === "object") {
+      setHaDataText(JSON.stringify(ac.data, null, 2));
+    } else {
+      setHaDataText("");
+    }
     setError(null);
     setShowForm(true);
   }
@@ -145,6 +158,27 @@ export default function AutomationsPage() {
   async function handleSave() {
     setSaving(true);
     setError(null);
+
+    // Parse HA service data JSON before save
+    let actionConfig = form.actionConfig;
+    if (form.actionType === "ha_service" && haDataText.trim()) {
+      try {
+        const parsed = JSON.parse(haDataText);
+        if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+          setError("Data must be a JSON object (e.g. {\"entity_id\": \"light.x\"})");
+          setSaving(false);
+          return;
+        }
+        actionConfig = { ...actionConfig, data: parsed };
+      } catch {
+        setError("Invalid JSON in Data field — check syntax");
+        setSaving(false);
+        return;
+      }
+    } else if (form.actionType === "ha_service") {
+      actionConfig = { ...actionConfig, data: {} };
+    }
+
     try {
       const payload = {
         ...(editingId ? { id: editingId } : {}),
@@ -153,7 +187,7 @@ export default function AutomationsPage() {
         triggerType: form.triggerType,
         triggerConfig: form.triggerConfig,
         actionType: form.actionType,
-        actionConfig: form.actionConfig,
+        actionConfig,
       };
 
       const res = await fetch("/api/automations", {
@@ -305,6 +339,8 @@ export default function AutomationsPage() {
               type={form.actionType}
               config={form.actionConfig}
               onChange={updateActionConfig}
+              haDataText={haDataText}
+              onHaDataTextChange={setHaDataText}
             />
 
             <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300 cursor-pointer">
@@ -336,13 +372,26 @@ export default function AutomationsPage() {
         </div>
       )}
 
+      {loadError && (
+        <div className="warm-card p-4 mb-4 flex items-center gap-2 text-sm text-red-500 bg-red-50 dark:bg-red-900/20 rounded-xl">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span>{loadError}</span>
+          <button
+            onClick={fetchAutomations}
+            className="ml-auto text-xs text-blue-500 hover:text-blue-400 underline"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
       {loading ? (
         <div className="space-y-3">
           {Array.from({ length: 3 }).map((_, i) => (
             <Skeleton key={i} className="h-24" />
           ))}
         </div>
-      ) : automations.length === 0 ? (
+      ) : automations.length === 0 && !loadError ? (
         <div className="warm-card p-8 text-center">
           <Zap className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
           <p className="text-slate-500 dark:text-slate-400">
@@ -560,10 +609,14 @@ function ActionConfigFields({
   type,
   config,
   onChange,
+  haDataText,
+  onHaDataTextChange,
 }: {
   type: ActionType;
   config: Record<string, unknown>;
   onChange: (key: string, value: unknown) => void;
+  haDataText: string;
+  onHaDataTextChange: (text: string) => void;
 }) {
   switch (type) {
     case "mqtt_publish": {
@@ -608,14 +661,8 @@ function ActionConfigFields({
           <input
             type="text"
             placeholder='Data JSON (e.g. {"entity_id":"light.x"})'
-            value={typeof c.data === "object" ? JSON.stringify(c.data) : ""}
-            onChange={(e) => {
-              try {
-                onChange("data", JSON.parse(e.target.value));
-              } catch {
-                onChange("data", {});
-              }
-            }}
+            value={haDataText}
+            onChange={(e) => onHaDataTextChange(e.target.value)}
             className={inputClass}
           />
         </div>
