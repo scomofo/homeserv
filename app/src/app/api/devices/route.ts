@@ -1,11 +1,13 @@
 import { NextRequest } from "next/server";
 import { getAllDevices, controlDevice, updateDeviceOverride } from "@/lib/device-manager";
+import { startAutomationEngine } from "@/lib/automation-engine";
 import { db } from "@/lib/db";
 import { devices } from "@/lib/schema";
 import { eq } from "drizzle-orm";
 
 export async function GET() {
   try {
+    startAutomationEngine();
     const allDevices = await getAllDevices();
     return Response.json(allDevices);
   } catch (e) {

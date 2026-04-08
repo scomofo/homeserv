@@ -2,12 +2,14 @@ import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { settings } from "@/lib/schema";
 import { eq } from "drizzle-orm";
+import { startAutomationEngine } from "@/lib/automation-engine";
 
 // Keys that should be masked when returned
 const SENSITIVE_KEYS = ["ha_token", "mqtt_password", "vnc_password"];
 
 export async function GET() {
   try {
+    startAutomationEngine();
     const all = db.select().from(settings).all();
     const result: Record<string, string> = {};
     for (const row of all) {

@@ -1,9 +1,11 @@
 import { getSystemSnapshot, startMetricCollector } from "@/lib/system-monitor";
+import { startAutomationEngine } from "@/lib/automation-engine";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   startMetricCollector();
+  startAutomationEngine();
 
   const encoder = new TextEncoder();
 
