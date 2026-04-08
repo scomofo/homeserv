@@ -141,29 +141,38 @@ async function evaluateHaTriggers(autos: Automation[]): Promise<void> {
   const haAutos = autos.filter((a) => a.triggerType === "ha_state");
   if (haAutos.length === 0) return;
 
-  for (const auto of haAutos) {
-    const config = auto.triggerConfig as HaStateTriggerConfig;
-    try {
-      const entity = await getHAState(config.entityId);
-      const currentState = entity.state;
-      const previousState = haLastStates.get(`${auto.id}:${config.entityId}`);
-
-      // Always update tracked state
-      haLastStates.set(`${auto.id}:${config.entityId}`, currentState);
-
-      // Skip first poll (no previous state to compare) — avoid firing on startup
-      if (previousState === undefined) continue;
-
-      // Edge trigger: only fire when state transitions INTO a matching state
-      const wasMatching = matchValue(config.matchType, previousState, config.value);
-      const isMatching = matchValue(config.matchType, currentState, config.value);
-
-      if (!wasMatching && isMatching) {
-        await executeAction(auto);
+  // Fetch all HA states concurrently
+  const results = await Promise.all(
+    haAutos.map(async (auto) => {
+      const config = auto.triggerConfig as HaStateTriggerConfig;
+      try {
+        const entity = await getHAState(config.entityId);
+        return { auto, config, state: entity.state, error: null };
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error(`[automation] HA poll failed for "${auto.name}":`, message);
+        return { auto, config, state: null, error: message };
       }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      console.error(`[automation] HA poll failed for "${auto.name}":`, message);
+    })
+  );
+
+  // Evaluate edge triggers sequentially (actions may depend on order)
+  for (const { auto, config, state: currentState } of results) {
+    if (currentState === null) continue;
+
+    const key = `${auto.id}:${config.entityId}`;
+    const previousState = haLastStates.get(key);
+
+    haLastStates.set(key, currentState);
+
+    // Skip first poll — avoid firing on startup
+    if (previousState === undefined) continue;
+
+    const wasMatching = matchValue(config.matchType, previousState, config.value);
+    const isMatching = matchValue(config.matchType, currentState, config.value);
+
+    if (!wasMatching && isMatching) {
+      await executeAction(auto);
     }
   }
 }
