@@ -73,6 +73,17 @@ const TEMPLATES: { label: string; form: FormState }[] = [
       actionConfig: { topic: "home/output", message: "received" },
     },
   },
+  {
+    label: "HA entity on → publish MQTT",
+    form: {
+      name: "HA entity on → publish MQTT",
+      enabled: true,
+      triggerType: "ha_state",
+      triggerConfig: { entityId: "binary_sensor.motion", matchType: "equals", value: "on" },
+      actionType: "mqtt_publish",
+      actionConfig: { topic: "home/alert", message: "motion_detected" },
+    },
+  },
 ];
 
 const inputClass =
@@ -144,6 +155,7 @@ export default function AutomationsPage() {
   const [error, setError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [haDataText, setHaDataText] = useState("");
+  const [showPicker, setShowPicker] = useState(false);
 
   const fetchAutomations = useCallback(async () => {
     try {
@@ -168,10 +180,16 @@ export default function AutomationsPage() {
   }, [fetchAutomations]);
 
   function openCreate() {
+    setShowPicker(true);
+    setShowForm(false);
+  }
+
+  function startBlank() {
     setEditingId(null);
     setForm(defaultForm());
     setHaDataText("");
     setError(null);
+    setShowPicker(false);
     setShowForm(true);
   }
 
@@ -286,6 +304,7 @@ export default function AutomationsPage() {
         : ""
     );
     setError(null);
+    setShowPicker(false);
     setShowForm(true);
   }
 
@@ -326,6 +345,37 @@ export default function AutomationsPage() {
           </button>
         </div>
       </div>
+
+      {showPicker && (
+        <div className="warm-card p-5 mb-6 animate-fade-in-up">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+              New Automation
+            </h3>
+            <button onClick={() => setShowPicker(false)} className="text-slate-400 hover:text-slate-600">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Start from a template or create a blank automation.</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
+            {TEMPLATES.map((t, i) => (
+              <button
+                key={i}
+                onClick={() => applyTemplate(t)}
+                className="text-left px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-blue-400 hover:bg-blue-500/5 transition text-sm text-slate-700 dark:text-slate-300"
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={startBlank}
+            className="text-xs text-blue-500 hover:text-blue-400 underline"
+          >
+            Start blank
+          </button>
+        </div>
+      )}
 
       {showForm && (
         <div className="warm-card p-5 mb-6 animate-fade-in-up">
