@@ -11,9 +11,9 @@ import type {
 
 let engineStarted = false;
 
-// Stable MQTT subscription registry: topic -> unsub function
-// Only changes when the set of required topics changes
-const activeMqttSubs = new Map<string, () => void>();
+// Stable MQTT subscription registry: topic -> { unsub, automationIds }
+// Only re-subscribes when the automation set for a topic changes
+const activeMqttSubs = new Map<string, { unsub: () => void; autoIds: string }>();
 
 // Track HA entity states for edge-trigger detection (only fire on transition)
 const haLastStates = new Map<string, string>();
@@ -97,29 +97,39 @@ function setupMqttSubscriptions(autos: Automation[]): void {
 
   if (!getMqttStatus().connected) return;
 
-  // Patch 5: Compute desired topics and diff against active subscriptions
-  const desiredTopics = new Set(
-    mqttAutos.map((a) => (a.triggerConfig as MqttMessageTriggerConfig).topic)
-  );
+  // Compute desired topics and a fingerprint of which automations use each
+  const topicAutoIds = new Map<string, string[]>();
+  for (const auto of mqttAutos) {
+    const topic = (auto.triggerConfig as MqttMessageTriggerConfig).topic;
+    const ids = topicAutoIds.get(topic) || [];
+    ids.push(auto.id);
+    topicAutoIds.set(topic, ids);
+  }
 
   // Unsubscribe topics no longer needed
-  for (const [topic, unsub] of activeMqttSubs) {
-    if (!desiredTopics.has(topic)) {
-      try { unsub(); } catch { /* ignore */ }
+  for (const [topic, entry] of activeMqttSubs) {
+    if (!topicAutoIds.has(topic)) {
+      try { entry.unsub(); } catch { /* ignore */ }
       activeMqttSubs.delete(topic);
     }
   }
 
-  // Subscribe to new topics (and rebuild callbacks for existing ones to pick up automation changes)
-  for (const topic of desiredTopics) {
-    // Always rebuild callback to reflect current automation set
-    const existingUnsub = activeMqttSubs.get(topic);
-    if (existingUnsub) {
-      try { existingUnsub(); } catch { /* ignore */ }
+  // Subscribe to new topics or rebuild when automation set for a topic changed
+  for (const [topic, ids] of topicAutoIds) {
+    const fingerprint = ids.sort().join(",");
+    const existing = activeMqttSubs.get(topic);
+
+    // Skip if subscription exists with same automation set
+    if (existing && existing.autoIds === fingerprint) continue;
+
+    // Unsub old if exists
+    if (existing) {
+      try { existing.unsub(); } catch { /* ignore */ }
     }
+
     const callback = buildMqttCallback(topic, autos);
     const unsub = mqttSubscribe(topic, callback);
-    activeMqttSubs.set(topic, unsub);
+    activeMqttSubs.set(topic, { unsub, autoIds: fingerprint });
   }
 }
 
@@ -255,8 +265,8 @@ export function stopAutomationEngine(): void {
     clearInterval(pollInterval);
     pollInterval = null;
   }
-  for (const [, unsub] of activeMqttSubs) {
-    try { unsub(); } catch { /* ignore */ }
+  for (const [, entry] of activeMqttSubs) {
+    try { entry.unsub(); } catch { /* ignore */ }
   }
   activeMqttSubs.clear();
   engineStarted = false;
