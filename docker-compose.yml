@@ -13,7 +13,7 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3001
-      - JWT_SECRET=${JWT_SECRET:-change-this-to-a-random-secret-in-production}
+      - JWT_SECRET=${JWT_SECRET:?Set JWT_SECRET in .env or environment}
       - VNC_HOST=${VNC_HOST:-host.docker.internal}  # Access host VNC server from container
       - VNC_PORT=${VNC_PORT:-5900}
       - VNC_WS_PORT=3002
