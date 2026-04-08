@@ -2,6 +2,14 @@
 
 import { useState, useEffect, useCallback } from "react";
 
+export interface DeviceCapabilities {
+  canToggle: boolean;
+  canDim: boolean;
+  canSetTemperature: boolean;
+  canLock: boolean;
+  canOpen: boolean;
+}
+
 export interface UnifiedDevice {
   id: string;
   name: string;
@@ -12,6 +20,17 @@ export interface UnifiedDevice {
   available: boolean;
   lastSeen: string | null;
   sourceId: string;
+  capabilities: DeviceCapabilities;
+}
+
+function deriveCapabilities(type: string, state: Record<string, unknown>): DeviceCapabilities {
+  return {
+    canToggle: ["light", "switch", "fan", "cover", "media_player"].includes(type),
+    canDim: type === "light" && state.brightness_pct !== undefined,
+    canSetTemperature: type === "thermostat" && state.temperature !== undefined,
+    canLock: type === "lock",
+    canOpen: type === "cover",
+  };
 }
 
 export function useDevices() {
@@ -24,7 +43,11 @@ export function useDevices() {
       const res = await fetch("/api/devices");
       if (!res.ok) throw new Error("Failed to fetch devices");
       const data = await res.json();
-      setDevices(data);
+      const enriched = data.map((d: UnifiedDevice) => ({
+        ...d,
+        capabilities: deriveCapabilities(d.type, d.state),
+      }));
+      setDevices(enriched);
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
