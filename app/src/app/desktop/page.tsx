@@ -1,20 +1,20 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { Monitor, Maximize, Minimize, RefreshCw, AlertCircle } from "lucide-react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { Monitor, Maximize, Minimize, RefreshCw, AlertCircle, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function DesktopPage() {
-  const [connected, setConnected] = useState(false);
+  const [status, setStatus] = useState<"idle" | "connecting" | "connected" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
   const [wsPort, setWsPort] = useState(3002);
   const containerRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const wsRef = useRef<WebSocket | null>(null);
+  const vncRef = useRef<HTMLDivElement>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rfbRef = useRef<any>(null);
 
   useEffect(() => {
-    // Fetch VNC config
     fetch("/api/settings")
       .then((r) => r.json())
       .then((settings) => {
@@ -25,50 +25,100 @@ export default function DesktopPage() {
       .catch(() => {});
   }, []);
 
-  function connect() {
+  // Load noVNC from CDN
+  const loadNoVNC = useCallback((): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      if ((window as unknown as Record<string, unknown>).__noVNCLoaded) {
+        resolve();
+        return;
+      }
+
+      const script = document.createElement("script");
+      script.type = "module";
+      script.textContent = [
+        "import RFB from 'https://cdn.jsdelivr.net/npm/@novnc/novnc@1.5.0/core/rfb.js';",
+        "window.__noVNC_RFB = RFB;",
+        "window.__noVNCLoaded = true;",
+        "window.dispatchEvent(new Event('novnc-loaded'));",
+      ].join("\n");
+      document.head.appendChild(script);
+
+      const onLoad = () => {
+        window.removeEventListener("novnc-loaded", onLoad);
+        resolve();
+      };
+      window.addEventListener("novnc-loaded", onLoad);
+
+      setTimeout(() => {
+        window.removeEventListener("novnc-loaded", onLoad);
+        reject(new Error("Failed to load noVNC library"));
+      }, 10000);
+    });
+  }, []);
+
+  async function connect() {
     setError(null);
-    setConnected(false);
+    setStatus("connecting");
 
     try {
+      await loadNoVNC();
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const RFB = (window as unknown as Record<string, any>).__noVNC_RFB;
+      if (!RFB) {
+        throw new Error("noVNC library failed to initialize");
+      }
+
+      if (!vncRef.current) {
+        throw new Error("VNC container not ready");
+      }
+
+      // Clear previous content safely
+      while (vncRef.current.firstChild) {
+        vncRef.current.removeChild(vncRef.current.firstChild);
+      }
+
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
       const wsUrl = `${protocol}//${window.location.hostname}:${wsPort}`;
 
-      const ws = new WebSocket(wsUrl);
-      wsRef.current = ws;
+      const rfb = new RFB(vncRef.current, wsUrl, {
+        wsProtocols: [],
+      });
 
-      ws.binaryType = "arraybuffer";
+      rfb.scaleViewport = true;
+      rfb.resizeSession = true;
 
-      ws.onopen = () => {
-        setConnected(true);
+      rfb.addEventListener("connect", () => {
+        setStatus("connected");
         setError(null);
-      };
+      });
 
-      ws.onclose = () => {
-        setConnected(false);
-      };
+      rfb.addEventListener("disconnect", (e: { detail: { clean: boolean } }) => {
+        setStatus("idle");
+        rfbRef.current = null;
+        if (!e.detail.clean) {
+          setError("Connection lost unexpectedly");
+        }
+      });
 
-      ws.onerror = () => {
-        setError(
-          "Cannot connect to VNC proxy. Make sure the VNC proxy server is running (npx tsx vnc-server.ts) and a VNC server is installed."
-        );
-        setConnected(false);
-      };
+      rfb.addEventListener("securityfailure", (e: { detail: { reason: string } }) => {
+        setStatus("error");
+        setError(`Authentication failed: ${e.detail.reason || "check VNC password in Settings"}`);
+      });
 
-      ws.onmessage = () => {
-        // VNC protocol handling would go here
-        // For a full implementation, integrate noVNC library
-      };
+      rfbRef.current = rfb;
     } catch (e) {
+      setStatus("error");
       setError(e instanceof Error ? e.message : "Connection failed");
     }
   }
 
   function disconnect() {
-    if (wsRef.current) {
-      wsRef.current.close();
-      wsRef.current = null;
+    if (rfbRef.current) {
+      rfbRef.current.disconnect();
+      rfbRef.current = null;
     }
-    setConnected(false);
+    setStatus("idle");
   }
 
   function toggleFullscreen() {
@@ -85,8 +135,16 @@ export default function DesktopPage() {
   useEffect(() => {
     const handler = () => setFullscreen(!!document.fullscreenElement);
     document.addEventListener("fullscreenchange", handler);
-    return () => document.removeEventListener("fullscreenchange", handler);
+    return () => {
+      document.removeEventListener("fullscreenchange", handler);
+      if (rfbRef.current) {
+        rfbRef.current.disconnect();
+        rfbRef.current = null;
+      }
+    };
   }, []);
+
+  const connected = status === "connected";
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -100,11 +158,11 @@ export default function DesktopPage() {
           <div
             className={cn(
               "w-2 h-2 rounded-full",
-              connected ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-600"
+              connected ? "bg-emerald-500" : status === "connecting" ? "bg-amber-500 animate-pulse" : "bg-slate-300 dark:bg-slate-600"
             )}
           />
           <span className="text-sm text-slate-500">
-            {connected ? "Connected" : "Disconnected"}
+            {status === "connecting" ? "Connecting..." : connected ? "Connected" : "Disconnected"}
           </span>
           {connected ? (
             <>
@@ -125,9 +183,15 @@ export default function DesktopPage() {
           ) : (
             <button
               onClick={connect}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-500/20 text-blue-600 dark:text-blue-400 text-sm font-medium hover:bg-blue-500/30 transition"
+              disabled={status === "connecting"}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-500/20 text-blue-600 dark:text-blue-400 text-sm font-medium hover:bg-blue-500/30 transition disabled:opacity-50"
             >
-              <RefreshCw className="w-3.5 h-3.5" /> Connect
+              {status === "connecting" ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <RefreshCw className="w-3.5 h-3.5" />
+              )}
+              Connect
             </button>
           )}
         </div>
@@ -141,19 +205,17 @@ export default function DesktopPage() {
       )}
 
       <div ref={containerRef} className="warm-card overflow-hidden">
-        {connected ? (
-          <div className="relative bg-black aspect-video flex items-center justify-center">
-            <canvas ref={canvasRef} className="w-full h-full" />
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-center text-white">
-                <Monitor className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                <p className="text-sm opacity-70">
-                  VNC WebSocket connected. For full desktop streaming,
-                  integrate the noVNC library into public/noVNC/ and
-                  import its RFB client here.
-                </p>
+        {connected || status === "connecting" ? (
+          <div className="relative bg-black" style={{ minHeight: "60vh" }}>
+            <div ref={vncRef} className="w-full h-full" style={{ minHeight: "60vh" }} />
+            {status === "connecting" && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="text-center text-white">
+                  <Loader2 className="w-8 h-8 mx-auto mb-2 animate-spin opacity-50" />
+                  <p className="text-sm opacity-70">Connecting to VNC server...</p>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         ) : (
           <div className="aspect-video bg-slate-100 dark:bg-slate-800/60 flex flex-col items-center justify-center gap-4 p-8">
@@ -166,11 +228,10 @@ export default function DesktopPage() {
                 View and control your desktop remotely through your browser.
               </p>
               <div className="text-left text-xs text-slate-400 space-y-1">
-                <p><strong>Setup required:</strong></p>
-                <p>1. Install a VNC server (TightVNC, UltraVNC, or RealVNC)</p>
+                <p><strong>Setup:</strong></p>
+                <p>1. Install a VNC server (TightVNC, RealVNC, etc.)</p>
                 <p>2. Configure VNC host/port in <a href="/settings" className="text-blue-500 hover:underline">Settings</a></p>
-                <p>3. Start the VNC proxy: <code className="bg-slate-200 dark:bg-slate-700 px-1 rounded">npx tsx vnc-server.ts</code></p>
-                <p>4. Click Connect above</p>
+                <p>3. Click Connect above</p>
               </div>
             </div>
           </div>
