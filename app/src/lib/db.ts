@@ -115,7 +115,8 @@ function initDb(): BetterSQLite3Database<typeof schema> {
     const cols = sqlite.prepare("PRAGMA table_info(automations)").all() as { name: string }[];
     const colNames = cols.map((c) => c.name);
     if (colNames.includes("trigger_json") && !colNames.includes("trigger_type")) {
-      sqlite.prepare("DROP TABLE automations").run();
+      // Preserve old data — rename to backup, create new table
+      sqlite.prepare("ALTER TABLE automations RENAME TO automations_legacy_backup").run();
       sqlite.prepare(`
         CREATE TABLE automations (
           id TEXT PRIMARY KEY,
@@ -132,6 +133,7 @@ function initDb(): BetterSQLite3Database<typeof schema> {
           updated_at TEXT NOT NULL DEFAULT (datetime('now'))
         )
       `).run();
+      console.log("[db] Old automations table backed up to automations_legacy_backup");
     }
   } catch {
     // Table doesn't exist yet, will be created above
