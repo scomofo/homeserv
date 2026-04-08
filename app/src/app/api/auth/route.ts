@@ -22,11 +22,11 @@ export async function POST(request: NextRequest) {
     const token = await createSession(user.id);
 
     const response = Response.json({ success: true });
-    // Set httpOnly cookie
+    const isSecure = request.nextUrl.protocol === "https:";
     const headers = new Headers(response.headers);
     headers.append(
       "Set-Cookie",
-      `homeserv-session=${token}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${72 * 60 * 60}`
+      `homeserv-session=${token}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${72 * 60 * 60}${isSecure ? "; Secure" : ""}`
     );
 
     return new Response(response.body, {

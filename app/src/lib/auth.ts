@@ -5,9 +5,10 @@ import { users, sessions } from "./schema";
 import { eq } from "drizzle-orm";
 
 const SALT_ROUNDS = 12;
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || "homeserv-default-secret-change-me-in-production"
-);
+if (!process.env.JWT_SECRET) {
+  throw new Error("[auth] JWT_SECRET environment variable is required. Set it before starting the app.");
+}
+const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET);
 const SESSION_DURATION_HOURS = 72;
 
 export async function hashPassword(plain: string): Promise<string> {
