@@ -38,7 +38,7 @@ const mqttPublishActionSchema = z.object({
 const haServiceActionSchema = z.object({
   domain: z.string().min(1, "HA domain required"),
   service: z.string().min(1, "HA service required"),
-  data: z.record(z.unknown()).optional(),
+  data: z.record(z.string(), z.unknown()).optional(),
 });
 
 const wolWakeActionSchema = z.object({

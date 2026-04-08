@@ -9,6 +9,7 @@ import {
 } from "@/lib/automation-repo";
 import { automationInputSchema } from "@/lib/automation-validation";
 import { startAutomationEngine, refreshAutomationEngine } from "@/lib/automation-engine";
+import type { AutomationInput } from "@/lib/automation-types";
 
 export async function GET() {
   try {
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: messages.join("; ") }, { status: 400 });
     }
 
-    const id = createAutomation(result.data);
+    const id = createAutomation(result.data as AutomationInput);
     refreshAutomationEngine();
     return Response.json({ success: true, id });
   } catch (e) {
