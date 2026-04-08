@@ -89,7 +89,10 @@ function topicMatchesPattern(topic: string, pattern: string): boolean {
   const patternParts = pattern.split("/");
 
   for (let i = 0; i < patternParts.length; i++) {
-    if (patternParts[i] === "#") return true;
+    if (patternParts[i] === "#") {
+      // '#' is only valid as the last segment per MQTT spec
+      return i === patternParts.length - 1;
+    }
     if (patternParts[i] === "+") continue;
     if (i >= topicParts.length || patternParts[i] !== topicParts[i]) return false;
   }

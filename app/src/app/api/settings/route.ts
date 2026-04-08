@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { settings } from "@/lib/schema";
-import { eq } from "drizzle-orm";
+import { setSetting } from "@/lib/settings";
 import { startAutomationEngine } from "@/lib/automation-engine";
 import { systemLogger } from "@/lib/logger";
 
@@ -39,12 +39,7 @@ export async function POST(request: NextRequest) {
       // Skip masked values (user didn't change the sensitive field)
       if (SENSITIVE_KEYS.includes(key) && value === "********") continue;
 
-      const existing = db.select().from(settings).where(eq(settings.key, key)).get();
-      if (existing) {
-        db.update(settings).set({ value }).where(eq(settings.key, key)).run();
-      } else {
-        db.insert(settings).values({ key, value }).run();
-      }
+      setSetting(key, value);
     }
 
     return Response.json({ success: true });
