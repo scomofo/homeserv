@@ -2,7 +2,7 @@ import bcrypt from "bcrypt";
 import { SignJWT, jwtVerify } from "jose";
 import { db } from "./db";
 import { users, sessions } from "./schema";
-import { eq } from "drizzle-orm";
+import { eq, lt, sql } from "drizzle-orm";
 
 const SALT_ROUNDS = 12;
 if (!process.env.JWT_SECRET) {
@@ -86,16 +86,7 @@ export function getUserByUsername(username: string) {
 }
 
 export function cleanExpiredSessions(): void {
-  const now = new Date().toISOString();
   db.delete(sessions).where(
-    // Delete sessions where expires_at < now
-    // Using raw SQL for date comparison
-    eq(sessions.expiresAt, sessions.expiresAt) // placeholder
+    lt(sessions.expiresAt, sql`datetime('now')`)
   ).run();
-
-  // Direct SQL for proper date comparison
-  const sqlite = (db as unknown as { $client: { exec: (sql: string) => void } }).$client;
-  if (sqlite && typeof sqlite.exec === "function") {
-    sqlite.exec(`DELETE FROM sessions WHERE expires_at < datetime('now')`);
-  }
 }

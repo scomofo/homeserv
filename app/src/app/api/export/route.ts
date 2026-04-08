@@ -53,10 +53,10 @@ export async function POST(request: NextRequest) {
           db.update(automations).set({
             name: row.name,
             enabled: row.enabled,
-            triggerType: row.trigger_type,
-            triggerConfigJson: row.trigger_config_json,
-            actionType: row.action_type,
-            actionConfigJson: row.action_config_json,
+            triggerType: row.triggerType,
+            triggerConfigJson: row.triggerConfigJson,
+            actionType: row.actionType,
+            actionConfigJson: row.actionConfigJson,
             updatedAt: new Date().toISOString(),
           }).where(eq(automations.id, row.id)).run();
         } else {
@@ -64,11 +64,11 @@ export async function POST(request: NextRequest) {
             id: row.id,
             name: row.name,
             enabled: row.enabled ?? true,
-            triggerType: row.trigger_type,
-            triggerConfigJson: row.trigger_config_json,
-            actionType: row.action_type,
-            actionConfigJson: row.action_config_json,
-            createdAt: row.created_at || new Date().toISOString(),
+            triggerType: row.triggerType,
+            triggerConfigJson: row.triggerConfigJson,
+            actionType: row.actionType,
+            actionConfigJson: row.actionConfigJson,
+            createdAt: row.createdAt || new Date().toISOString(),
             updatedAt: new Date().toISOString(),
           }).run();
         }

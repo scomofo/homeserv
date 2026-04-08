@@ -247,14 +247,14 @@ function evaluateScheduleTriggers(autos: Automation[]): void {
 
 let pollInterval: ReturnType<typeof setInterval> | null = null;
 
-function runEngineLoop(): void {
+async function runEngineLoop(): Promise<void> {
   const enabledAutos = listEnabledAutomations();
 
   // Refresh MQTT subscriptions (stable diff, not teardown/rebuild)
   setupMqttSubscriptions(enabledAutos);
 
   // Evaluate HA state triggers
-  evaluateHaTriggers(enabledAutos);
+  await evaluateHaTriggers(enabledAutos);
 
   // Evaluate schedule triggers
   evaluateScheduleTriggers(enabledAutos);
