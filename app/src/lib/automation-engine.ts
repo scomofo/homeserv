@@ -3,6 +3,7 @@ import { listEnabledAutomations, recordAutomationRun } from "./automation-repo";
 import { subscribe as mqttSubscribe, publish as mqttPublish, getMqttStatus, connectMqtt, isMqttConfigured } from "./mqtt-client";
 import { getHAState, callHAService, isHAConfigured } from "./ha-client";
 import { wakeDevice } from "./wol";
+import { automationLogger } from "./logger";
 import type {
   Automation, MqttMessageTriggerConfig, HaStateTriggerConfig,
   ScheduleTriggerConfig, MqttPublishActionConfig, HaServiceActionConfig,
@@ -59,7 +60,7 @@ async function executeAction(auto: Automation): Promise<void> {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     recordAutomationRun(auto.id, "error", message);
-    console.error(`[automation] "${auto.name}" action failed:`, message);
+    automationLogger.error(`Action failed: ${auto.name}`, { automationId: auto.id, error: message });
   }
 }
 
@@ -89,9 +90,9 @@ function setupMqttSubscriptions(autos: Automation[]): void {
   if (mqttAutos.length > 0 && isMqttConfigured() && !getMqttStatus().connected) {
     try {
       connectMqtt();
-      console.log("[automation] Auto-connected MQTT for automation triggers");
+      automationLogger.info("Auto-connected MQTT for automation triggers");
     } catch (err) {
-      console.error("[automation] MQTT auto-connect failed:", err instanceof Error ? err.message : err);
+      automationLogger.error("MQTT auto-connect failed", { error: err instanceof Error ? err.message : String(err) });
     }
   }
 
@@ -150,7 +151,7 @@ async function evaluateHaTriggers(autos: Automation[]): Promise<void> {
         return { auto, config, state: entity.state, error: null };
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        console.error(`[automation] HA poll failed for "${auto.name}":`, message);
+        automationLogger.error(`HA poll failed: ${auto.name}`, { automationId: auto.id, error: message });
         return { auto, config, state: null, error: message };
       }
     })
@@ -263,7 +264,7 @@ export function startAutomationEngine(): void {
   if (engineStarted) return;
   engineStarted = true;
 
-  console.log("[automation] Engine started");
+  automationLogger.info("Engine started");
 
   // Initial run after short delay to let services initialize
   setTimeout(runEngineLoop, 2000);
@@ -287,5 +288,5 @@ export function stopAutomationEngine(): void {
   }
   activeMqttSubs.clear();
   engineStarted = false;
-  console.log("[automation] Engine stopped");
+  automationLogger.info("Engine stopped");
 }
