@@ -179,16 +179,24 @@ async function evaluateHaTriggers(autos: Automation[]): Promise<void> {
 
 // --- Schedule Trigger Runtime (Patch 3: DB-aware dedupe) ---
 
+// Local date string for slot comparison: "YYYY-MM-DD"
+function localDateKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+// Local date+hour string for slot comparison: "YYYY-MM-DD:HH"
+function localHourKey(d: Date): string {
+  return `${localDateKey(d)}:${String(d.getHours()).padStart(2, "0")}`;
+}
+
 function isInCurrentSlot(lastRunAt: string, config: ScheduleTriggerConfig): boolean {
   const lastRun = new Date(lastRunAt);
   const now = new Date();
 
   if (config.mode === "daily") {
-    // Same calendar date and same time slot
-    return lastRun.toISOString().slice(0, 10) === now.toISOString().slice(0, 10);
+    return localDateKey(lastRun) === localDateKey(now);
   } else {
-    // Same hour
-    return lastRun.toISOString().slice(0, 13) === now.toISOString().slice(0, 13);
+    return localHourKey(lastRun) === localHourKey(now);
   }
 }
 
@@ -207,10 +215,10 @@ function evaluateScheduleTriggers(autos: Automation[]): void {
 
     if (config.mode === "daily") {
       shouldFire = config.time === currentTime;
-      slotKey = `${auto.id}:${now.toISOString().slice(0, 10)}:${config.time}`;
+      slotKey = `${auto.id}:${localDateKey(now)}:${config.time}`;
     } else if (config.mode === "hourly") {
       shouldFire = config.minute === now.getMinutes();
-      slotKey = `${auto.id}:${now.toISOString().slice(0, 13)}:${config.minute}`;
+      slotKey = `${auto.id}:${localHourKey(now)}:${config.minute}`;
     }
 
     if (!shouldFire) continue;
