@@ -36,7 +36,8 @@ export async function POST(request: NextRequest) {
       status: 200,
       headers,
     });
-  } catch {
+  } catch (e) {
+    authLogger.error("Login error", { error: e instanceof Error ? e.message : String(e) });
     return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }

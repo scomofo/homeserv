@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { settings } from "@/lib/schema";
 import { eq } from "drizzle-orm";
 import { startAutomationEngine } from "@/lib/automation-engine";
+import { systemLogger } from "@/lib/logger";
 
 // Keys that should be masked when returned
 const SENSITIVE_KEYS = ["ha_token", "mqtt_password", "vnc_password"];
@@ -18,7 +19,8 @@ export async function GET() {
         : row.value;
     }
     return Response.json(result);
-  } catch {
+  } catch (e) {
+    systemLogger.error("Failed to load settings", { error: e instanceof Error ? e.message : String(e) });
     return Response.json({ error: "Failed to load settings" }, { status: 500 });
   }
 }
@@ -46,7 +48,8 @@ export async function POST(request: NextRequest) {
     }
 
     return Response.json({ success: true });
-  } catch {
+  } catch (e) {
+    systemLogger.error("Failed to save settings", { error: e instanceof Error ? e.message : String(e) });
     return Response.json({ error: "Failed to save settings" }, { status: 500 });
   }
 }

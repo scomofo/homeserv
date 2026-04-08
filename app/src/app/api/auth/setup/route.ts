@@ -1,6 +1,7 @@
 import { hasUsers, hashPassword } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { users } from "@/lib/schema";
+import { authLogger } from "@/lib/logger";
 
 export async function POST(request: Request) {
   try {
@@ -28,7 +29,8 @@ export async function POST(request: Request) {
     }).run();
 
     return Response.json({ success: true });
-  } catch {
+  } catch (e) {
+    authLogger.error("Setup failed", { error: e instanceof Error ? e.message : String(e) });
     return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }
