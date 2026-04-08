@@ -1,6 +1,6 @@
 // app/src/lib/automation-engine.ts
 import { listEnabledAutomations, recordAutomationRun } from "./automation-repo";
-import { subscribe as mqttSubscribe, publish as mqttPublish, getMqttStatus } from "./mqtt-client";
+import { subscribe as mqttSubscribe, publish as mqttPublish, getMqttStatus, connectMqtt, isMqttConfigured } from "./mqtt-client";
 import { getHAState, callHAService, isHAConfigured } from "./ha-client";
 import { wakeDevice } from "./wol";
 import type {
@@ -11,13 +11,14 @@ import type {
 
 let engineStarted = false;
 
-// Track MQTT unsubscribe functions so we can refresh subscriptions
-const mqttUnsubs: (() => void)[] = [];
+// Stable MQTT subscription registry: topic -> unsub function
+// Only changes when the set of required topics changes
+const activeMqttSubs = new Map<string, () => void>();
 
 // Track HA entity states for edge-trigger detection (only fire on transition)
 const haLastStates = new Map<string, string>();
 
-// Track schedule last-fire times to avoid duplicate runs
+// In-memory schedule dedupe cache (supplements DB check for performance)
 const scheduleLastFired = new Map<string, string>();
 
 // --- Matching ---
@@ -62,27 +63,63 @@ async function executeAction(auto: Automation): Promise<void> {
   }
 }
 
-// --- MQTT Trigger Runtime ---
+// --- MQTT Trigger Runtime (Patch 1 + 5: auto-connect + stable subscriptions) ---
 
-function setupMqttSubscriptions(autos: Automation[]): void {
-  // Clear old subscriptions
-  for (const unsub of mqttUnsubs) {
-    try { unsub(); } catch { /* ignore */ }
-  }
-  mqttUnsubs.length = 0;
+// Collect all enabled MQTT automations for a given topic
+function buildMqttCallback(topic: string, autos: Automation[]): (_topic: string, message: string) => void {
+  const relevantAutos = autos.filter((a) => {
+    if (a.triggerType !== "mqtt_message") return false;
+    return (a.triggerConfig as MqttMessageTriggerConfig).topic === topic;
+  });
 
-  if (!getMqttStatus().connected) return;
-
-  const mqttAutos = autos.filter((a) => a.triggerType === "mqtt_message");
-
-  for (const auto of mqttAutos) {
-    const config = auto.triggerConfig as MqttMessageTriggerConfig;
-    const unsub = mqttSubscribe(config.topic, (_topic: string, message: string) => {
+  return (_t: string, message: string) => {
+    for (const auto of relevantAutos) {
+      const config = auto.triggerConfig as MqttMessageTriggerConfig;
       if (matchValue(config.matchType, message, config.value)) {
         executeAction(auto);
       }
-    });
-    mqttUnsubs.push(unsub);
+    }
+  };
+}
+
+function setupMqttSubscriptions(autos: Automation[]): void {
+  const mqttAutos = autos.filter((a) => a.triggerType === "mqtt_message");
+
+  // Patch 1: Auto-connect MQTT if configured and there are MQTT automations
+  if (mqttAutos.length > 0 && isMqttConfigured() && !getMqttStatus().connected) {
+    try {
+      connectMqtt();
+      console.log("[automation] Auto-connected MQTT for automation triggers");
+    } catch (err) {
+      console.error("[automation] MQTT auto-connect failed:", err instanceof Error ? err.message : err);
+    }
+  }
+
+  if (!getMqttStatus().connected) return;
+
+  // Patch 5: Compute desired topics and diff against active subscriptions
+  const desiredTopics = new Set(
+    mqttAutos.map((a) => (a.triggerConfig as MqttMessageTriggerConfig).topic)
+  );
+
+  // Unsubscribe topics no longer needed
+  for (const [topic, unsub] of activeMqttSubs) {
+    if (!desiredTopics.has(topic)) {
+      try { unsub(); } catch { /* ignore */ }
+      activeMqttSubs.delete(topic);
+    }
+  }
+
+  // Subscribe to new topics (and rebuild callbacks for existing ones to pick up automation changes)
+  for (const topic of desiredTopics) {
+    // Always rebuild callback to reflect current automation set
+    const existingUnsub = activeMqttSubs.get(topic);
+    if (existingUnsub) {
+      try { existingUnsub(); } catch { /* ignore */ }
+    }
+    const callback = buildMqttCallback(topic, autos);
+    const unsub = mqttSubscribe(topic, callback);
+    activeMqttSubs.set(topic, unsub);
   }
 }
 
@@ -121,7 +158,20 @@ async function evaluateHaTriggers(autos: Automation[]): Promise<void> {
   }
 }
 
-// --- Schedule Trigger Runtime ---
+// --- Schedule Trigger Runtime (Patch 3: DB-aware dedupe) ---
+
+function isInCurrentSlot(lastRunAt: string, config: ScheduleTriggerConfig): boolean {
+  const lastRun = new Date(lastRunAt);
+  const now = new Date();
+
+  if (config.mode === "daily") {
+    // Same calendar date and same time slot
+    return lastRun.toISOString().slice(0, 10) === now.toISOString().slice(0, 10);
+  } else {
+    // Same hour
+    return lastRun.toISOString().slice(0, 13) === now.toISOString().slice(0, 13);
+  }
+}
 
 function evaluateScheduleTriggers(autos: Automation[]): void {
   const now = new Date();
@@ -144,16 +194,22 @@ function evaluateScheduleTriggers(autos: Automation[]): void {
       slotKey = `${auto.id}:${now.toISOString().slice(0, 13)}:${config.minute}`;
     }
 
-    if (shouldFire && !scheduleLastFired.has(slotKey)) {
-      scheduleLastFired.set(slotKey, now.toISOString());
-      executeAction(auto);
+    if (!shouldFire) continue;
 
-      // Clean old slot keys (keep last 100)
-      if (scheduleLastFired.size > 100) {
-        const keys = Array.from(scheduleLastFired.keys());
-        for (let i = 0; i < keys.length - 50; i++) {
-          scheduleLastFired.delete(keys[i]);
-        }
+    // In-memory dedupe (fast path)
+    if (scheduleLastFired.has(slotKey)) continue;
+
+    // DB-aware dedupe: check lastRunAt to survive process restarts
+    if (auto.lastRunAt && isInCurrentSlot(auto.lastRunAt, config)) continue;
+
+    scheduleLastFired.set(slotKey, now.toISOString());
+    executeAction(auto);
+
+    // Clean old slot keys (keep last 100)
+    if (scheduleLastFired.size > 100) {
+      const keys = Array.from(scheduleLastFired.keys());
+      for (let i = 0; i < keys.length - 50; i++) {
+        scheduleLastFired.delete(keys[i]);
       }
     }
   }
@@ -166,7 +222,7 @@ let pollInterval: ReturnType<typeof setInterval> | null = null;
 function runEngineLoop(): void {
   const enabledAutos = listEnabledAutomations();
 
-  // Refresh MQTT subscriptions
+  // Refresh MQTT subscriptions (stable diff, not teardown/rebuild)
   setupMqttSubscriptions(enabledAutos);
 
   // Evaluate HA state triggers
@@ -199,10 +255,10 @@ export function stopAutomationEngine(): void {
     clearInterval(pollInterval);
     pollInterval = null;
   }
-  for (const unsub of mqttUnsubs) {
+  for (const [, unsub] of activeMqttSubs) {
     try { unsub(); } catch { /* ignore */ }
   }
-  mqttUnsubs.length = 0;
+  activeMqttSubs.clear();
   engineStarted = false;
   console.log("[automation] Engine stopped");
 }
